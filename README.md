@@ -1,45 +1,61 @@
-# Frappe Tasks MCP
+# Frappe MCP
 
-MCP server برای Frappe v15 — هر یوزر با username/password خودش login می‌کنه،
-تسک‌هاش (ToDo) رو مدیریت می‌کنه. Permission ها رو خود Frappe اعمال می‌کنه.
+اپ MCP برای Frappe v15 — endpoint روی خود سرور نصب می‌شه، هر یوزر با
+session خودش وصل می‌شه و فقط به دیتای مجاز خودش دسترسی داره.
 
-## اجرا
+**سایت:** `https://erp.clickapps.ir`
+
+## نصب روی سرور
 
 ```bash
-pip install -r requirements.txt
-FRAPPE_URL=https://your-site.com python server.py
+cd /home/clickerp/frappe-bench
+bench get-app frappe_mcp https://github.com/diyakou/frappe_mcp
+bench --site erp.clickapps.ir install-app frappe_mcp
+bench --site erp.clickapps.ir migrate
+bench restart
 ```
+
+## Endpoint
+
+```
+POST https://erp.clickapps.ir/api/method/frappe_mcp.mcp.handle
+```
+
+JSON-RPC 2.0 — متدهای `initialize`, `tools/list`, `tools/call`, `ping`.
+Auth: session کوکی یا token عادی Frappe. Guest → `PermissionError`.
 
 ## Tools
 
 | Tool | کار |
 |---|---|
-| `frappe_login(usr, pwd)` | ورود هر یوزر با پسورد خودش |
-| `my_tasks(status, limit)` | لیست تسک‌های من |
-| `get_task(name)` | دیدن یک تسک |
-| `create_task(description, date, priority, allocated_to)` | ایجاد تسک |
-| `update_task(name, status, priority, date)` | ویرایش تسک |
-| `complete_task(name)` | بستن تسک |
-| `add_comment(name, text)` | کامنت گذاشتن |
-| `my_profile()` | کاربر لاگین‌شده |
+| `search_doctypes` | پیدا کردن DocType ها |
+| `get_doctype_schema` | فیلدهای یک DocType |
+| `list_documents` | لیست داکیومنت‌ها با filter |
+| `get_document` | خوندن یک داکیومنت |
+| `count_documents` | شمارش |
+| `create_document` | ایجاد |
+| `update_document` | ویرایش |
+| `delete_document` | حذف |
+| `call_method` | صدا زدن متد whitelisted |
+| `run_report` | اجرای گزارش |
 
-## اتصال به Claude Desktop
+## لاگ (Audit)
 
-```json
-{
-  "mcpServers": {
-    "frappe-tasks": {
-      "command": "python",
-      "args": ["E:/project/frappe_mcp/server.py"],
-      "env": { "FRAPPE_URL": "https://your-site.com" }
-    }
-  }
-}
+هر `tools/call` در DocType **MCP Call Log** ثبت می‌شه: user, tool, arguments,
+success, error, duration. فقط System Manager می‌بینه.
+Desk → search "MCP Call Log".
+
+## تست
+
+```bash
+curl -X POST https://erp.clickapps.ir/api/method/frappe_mcp.mcp.handle \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
+
+بدون login باید `PermissionError` بده — یعنی endpoint فعاله.
 
 ## امنیت
 
-- Login روی همه session ها مشترکه (یک کاربر در لحظه). چند کاربر همزمان =
-  چند instance جدا از سرور، یا اضافه کردن session-per-connection.
-- پسوردها ذخیره نمی‌شن — فقط کوکی session در حافظه.
-- `/api/method/login` با auth لاگین Frappe کار می‌کنه؛ permission چک سرور Frappe انجام میشه.
+- Permission چک سمت Frappe انجام می‌شه؛ هر یوزر فقط دیتای role خودش.
+- `MCP Call Log` برای دیدن اینکه کی چه call ای زده.
