@@ -1,0 +1,5 @@
+app_name = "frappe_mcp"
+app_title = "Frappe MCP"
+app_publisher = "ClickERP"
+app_description = "MCP server endpoint for Frappe v15 — per-user session auth"
+app_license = "MIT"
