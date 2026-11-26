@@ -1,0 +1,16 @@
+{
+ "chart_builder": null,
+ "charts": [],
+ "creation": "2026-11-26 00:00:00.000000",
+ "developer_mode_only": 0,
+ "disable_user_settings": 0,
+ "doctype": "Module Def",
+ "engine": "InnoDB",
+ "label": "Frappe MCP",
+ "modified": "2026-11-26 00:00:00.000000",
+ "module_name": "Frappe MCP",
+ "owner": "Administrator",
+ "restrict_to_domain": null,
+ "roles": [],
+ "version": "0.1.0"
+}

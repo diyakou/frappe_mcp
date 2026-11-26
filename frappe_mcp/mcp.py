@@ -144,6 +144,23 @@ def _tool_call(name, args):
     raise frappe.NotFound(_("Unknown tool: {0}").format(name))
 
 
+def _log_call(tool, args, success, error="", started=None):
+    """Best-effort audit log; never fails the tool call itself."""
+    try:
+        import time
+        frappe.get_doc({
+            "doctype": "MCP Call Log",
+            "user": frappe.session.user,
+            "tool_name": tool,
+            "arguments_json": json.dumps(args, default=str, ensure_ascii=False)[:50000],
+            "success": 1 if success else 0,
+            "error_message": str(error)[:500],
+            "duration_ms": int((time.monotonic() - started) * 1000) if started else 0,
+        }).insert(ignore_permissions=True)
+    except Exception:
+        frappe.log_error("frappe_mcp: log insert failed")
+
+
 MCP_PROTOCOL_VERSION = "2025-06-18"
 
 
@@ -173,12 +190,17 @@ def handle():
     if method == "tools/list":
         return _rpc({"tools": TOOLS}, id)
     if method == "tools/call":
+        import time as _t
+        _start = _t.monotonic()
         try:
             out = _tool_call(params["name"], params.get("arguments") or {})
+            _log_call(params["name"], params.get("arguments") or {}, True, started=_start)
             return _rpc({"content": [{"type": "text",
                                       "text": json.dumps(out, default=str, ensure_ascii=False)}]},
                         id)
         except Exception as e:
             frappe.log_error("frappe_mcp")
+            _log_call(params["name"], params.get("arguments") or {}, False,
+                      error=str(e), started=_start)
             return _rpc({"content": [{"type": "text", "text": str(e)}], "isError": True}, id)
     return _rpc({"error": {"code": -32601, "message": f"Method not found: {method}"}}, id)
