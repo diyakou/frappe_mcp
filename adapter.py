@@ -70,6 +70,9 @@ def rpc(method, params=None, id=1):
     r = session.post(ENDPOINT, json=body, timeout=60)
     r.raise_for_status()
     data = r.json()
+    # frappe wraps whitelisted returns in {"message": ...}
+    if isinstance(data, dict) and "message" in data and "jsonrpc" in data["message"]:
+        data = data["message"]
     if "error" in data:
         raise RuntimeError(data["error"].get("message", str(data["error"])))
     return data.get("result")
