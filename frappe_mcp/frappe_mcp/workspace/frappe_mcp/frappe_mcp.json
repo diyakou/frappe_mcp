@@ -1,0 +1,50 @@
+{
+ "charts": [],
+ "content": null,
+ "creation": "2026-11-26 00:00:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "hide_custom": 0,
+ "icon": "tool",
+ "idx": 0,
+ "is_hidden": 0,
+ "label": "Frappe MCP",
+ "links": [
+  {
+   "hidden": 0,
+   "is_child_table": 0,
+   "label": "Logs",
+   "link_type": "DocType",
+   "onboard": 0,
+   "only_for": "",
+   "type": "Card",
+   "table_columns": 2
+  },
+  {
+   "hidden": 0,
+   "is_child_table": 0,
+   "label": "MCP Call Log",
+   "link_type": "DocType",
+   "onboard": 0,
+   "only_for": "",
+   "parent": "Logs",
+   "type": "Link",
+   "table_columns": 2
+  }
+ ],
+ "modified": "2026-11-26 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Frappe MCP",
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "roles": [
+  {
+   "role": "System Manager"
+  }
+ ],
+ "sequence_id": 99.0,
+ "shortcuts": [],
+ "title": "Frappe MCP"
+}
