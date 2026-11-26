@@ -1,5 +1,5 @@
 """Stdio MCP adapter — bridges an MCP client (Claude Desktop / opencode) to the
-Frappe MCP endpoint at erp.clickapps.ir. Login happens on first tool call.
+Frappe MCP endpoint at dev-erp.clickapps.ir. Login happens on first tool call.
 
 Env:
   FRAPPE_URL  (default https://erp.clickapps.ir)
@@ -11,7 +11,7 @@ import sys
 
 import requests
 
-URL = os.environ.get("FRAPPE_URL", "https://erp.clickapps.ir").rstrip("/")
+URL = os.environ.get("FRAPPE_URL", "https://dev-erp.clickapps.ir").rstrip("/")
 ENDPOINT = f"{URL}/api/method/frappe_mcp.mcp.handle"
 LOGIN = f"{URL}/api/method/login"
 
