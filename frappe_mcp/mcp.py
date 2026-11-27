@@ -164,43 +164,79 @@ def _log_call(tool, args, success, error="", started=None):
 MCP_PROTOCOL_VERSION = "2025-06-18"
 
 
-@frappe.whitelist(methods=["POST"])
+def _json_response(payload, status=200, session_id=None):
+    """Streamable-HTTP compliant JSON response."""
+    from werkzeug.wrappers import Response
+    headers = {"MCP-Protocol-Version": MCP_PROTOCOL_VERSION,
+               "Content-Type": "application/json"}
+    if session_id:
+        headers["Mcp-Session-Id"] = session_id
+    return Response(json.dumps(payload, default=str, ensure_ascii=False),
+                    status=status, headers=headers)
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST", "GET", "DELETE"])
 def handle():
-    """MCP JSON-RPC entry point. Runs as the authenticated session user."""
+    """Streamable HTTP MCP endpoint. Auth via Frappe token (Authorization
+    header) or session cookie; Frappe applies the user's permissions."""
     if frappe.session.user == "Guest":
-        frappe.throw(_("Login required"), frappe.PermissionError)
+        return _json_response({"jsonrpc": "2.0", "id": None,
+                               "error": {"code": -32001,
+                                         "message": "Unauthorized: send Authorization: "
+                                                    "token API_KEY:API_SECRET"}},
+                              status=401)
+
+    session_id = frappe.request.headers.get("Mcp-Session-Id") or frappe.session.sid
+
+    if frappe.request.method == "DELETE":
+        # client closing the session — nothing persistent server-side
+        return _json_response({}, status=200)
+
+    if frappe.request.method == "GET":
+        # SSE stream: clients that only need request/response can ignore it;
+        # return 405 to signal no stream support (spec-allowed).
+        return _json_response({"jsonrpc": "2.0", "id": None,
+                               "error": {"code": -32002,
+                                         "message": "SSE not supported; use POST"}},
+                              status=405)
 
     try:
         req = json.loads(frappe.request.data or b"{}")
     except json.JSONDecodeError:
-        return _rpc({"error": {"code": -32700, "message": "Parse error"}})
+        return _json_response({"jsonrpc": "2.0", "id": None,
+                               "error": {"code": -32700, "message": "Parse error"}},
+                              session_id=session_id)
 
     method, params, id = req.get("method"), req.get("params") or {}, req.get("id")
 
     if method == "initialize":
-        return _rpc({
+        result = {
             "protocolVersion": MCP_PROTOCOL_VERSION,
             "capabilities": {"tools": {}},
-            "serverInfo": {"name": "frappe-mcp", "version": "0.2.0"},
-        }, id)
+            "serverInfo": {"name": "frappe-mcp", "version": "0.3.0"},
+        }
+        return _json_response(_rpc(result, id), session_id=frappe.session.sid)
     if method in ("notifications/initialized", None):
-        return {}
+        return _json_response({}, status=202)
     if method == "ping":
-        return _rpc({}, id)
+        return _json_response(_rpc({}, id), session_id=session_id)
     if method == "tools/list":
-        return _rpc({"tools": TOOLS}, id)
+        return _json_response(_rpc({"tools": TOOLS}, id), session_id=session_id)
     if method == "tools/call":
         import time as _t
         _start = _t.monotonic()
         try:
             out = _tool_call(params["name"], params.get("arguments") or {})
             _log_call(params["name"], params.get("arguments") or {}, True, started=_start)
-            return _rpc({"content": [{"type": "text",
-                                      "text": json.dumps(out, default=str, ensure_ascii=False)}]},
-                        id)
+            result = {"content": [{"type": "text",
+                                   "text": json.dumps(out, default=str, ensure_ascii=False)}]}
         except Exception as e:
             frappe.log_error("frappe_mcp")
             _log_call(params["name"], params.get("arguments") or {}, False,
                       error=str(e), started=_start)
-            return _rpc({"content": [{"type": "text", "text": str(e)}], "isError": True}, id)
-    return _rpc({"error": {"code": -32601, "message": f"Method not found: {method}"}}, id)
+            result = {"content": [{"type": "text", "text": str(e)}], "isError": True}
+        return _json_response(_rpc(result, id), session_id=session_id)
+    return _json_response({"jsonrpc": "2.0", "id": id,
+                           "error": {"code": -32601,
+                                     "message": f"Method not found: {method}"}},
+                          session_id=session_id)
